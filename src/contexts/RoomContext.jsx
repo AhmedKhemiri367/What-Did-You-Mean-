@@ -722,13 +722,12 @@ export function RoomProvider({ children }) {
                 return;
             }
 
-            console.log("RoomContext: Clearing old answer for new phase:", newPhase);
-            supabase.from('players').update({ last_answer: null }).eq('id', currentPlayer.id).then(({ error }) => {
-                if (!error) {
-                    sessionStorage.setItem(`cleared_phase_${room?.id}`, newPhase);
-                    setPlayers(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, last_answer: null } : p));
-                }
-            });
+            console.log("RoomContext: Clearing local old answer state for new phase:", newPhase);
+            // CRITICAL FIX: Only clear LOCAL state here so the UI doesn't flash old answers. 
+            // DO NOT clear the database, or else advancePhase won't be able to collect drafts.
+            // advancePhase handles the actual database clearing safely.
+            sessionStorage.setItem(`cleared_phase_${room?.id}`, newPhase);
+            setPlayers(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, last_answer: null } : p));
         }
     }, [gameState?.phase, currentPlayer?.id, room?.id]);
 
