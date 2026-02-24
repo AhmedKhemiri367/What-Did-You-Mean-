@@ -1,0 +1,142 @@
+
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabaseClient';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+const RoomContext = createContext();
+
+const decodePlayer = (p) => {
+    if (!p || !p.avatar) return p;
+    const avatarparts = String(p.avatar).split('|');
+    const emoji = avatarparts[0].trim();
+    const extractedFingerprint = avatarparts[1] || null;
+
+    return {
+        ...p,
+        avatar: emoji,
+        fingerprint: extractedFingerprint
+    };
+};
+
+export const RoomProvider = ({ children }) => {
+    const navigate = useNavigate();
+    const [room, setRoom] = useState(null);
+    const [players, setPlayers] = useState([]);
+    const [gameState, setGameState] = useState(null);
+    const [currentPlayer, setCurrentPlayer] = useState(null);
+    const [error, setError] = useState(null);
+    const [fingerprint, setFingerprint] = useState(() => {
+        let f = localStorage.getItem('player_fingerprint');
+        if (!f) {
+            f = 'f_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+            localStorage.setItem('player_fingerprint', f);
+        }
+        return f;
+    });
+    const isHost = currentPlayer?.is_host;
+    const isProcessing = useRef(false);
+    const pendingJoinRef = useRef(null);
+    const channelRef = useRef(null);
+    const prevPlayersRef = useRef([]);
+
+    useEffect(() => {
+        prevPlayersRef.current = players;
+    }, [players]);
+
+    // Subscribe to changes when room is active
+    useEffect(() => {
+        if (!room?.id) return;
+
+        if (channelRef.current) {
+            supabase.removeChannel(channelRef.current);
+        }
+
+        const channel = supabase
+            .channel(`room-${room.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+                console.log("RoomContext: [PLAYERS SYNC]", payload.eventType, payload.new?.id || payload.old?.id);
+                const isOurPlayer = (payload.new && payload.new.room_id === room.id) || 
+                                    (payload.old && prevPlayersRef.current.some(p => p.id === payload.old.id));
+                if (!isOurPlayer) return;
+
+                if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                    const updatedPlayer = decodePlayer(payload.new);
+                    setPlayers(prev => {
+                        const exists = prev.some(p => p.id === updatedPlayer.id);
+                        if (exists) {
+                            return prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p);
+                        }
+                        return [...prev, updatedPlayer];
+                    });
+                    if (currentPlayer?.id === updatedPlayer.id) {
+                        setCurrentPlayer(updatedPlayer);
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    setPlayers(prev => prev.filter(p => p.id !== payload.old.id));
+                }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state', filter: `room_id=eq.${room.id}` }, (payload) => {
+                if (payload.new) setGameState(payload.new);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, (payload) => {
+                if (payload.new) setRoom(prev => ({ ...prev, ...payload.new }));
+            })
+            .subscribe((status) => {
+                console.log("RoomContext: Subscription status:", status);
+            });
+
+        channelRef.current = channel;
+        fetchPlayers(room.id);
+
+        const syncInterval = setInterval(() => {
+            if (room?.id) {
+                fetchPlayers(room.id);
+                supabase.from('rooms').select('*').eq('id', room.id).single()
+                    .then(({ data }) => data && setRoom(prev => ({ ...prev, ...data })));
+                supabase.from('game_state').select('*').eq('room_id', room.id).single()
+                    .then(({ data }) => data && setGameState(data));
+            }
+        }, 5000);
+
+        return () => {
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
+            }
+            clearInterval(syncInterval);
+        };
+    }, [room?.id]);
+
+    // Client-Side Answer Clearing
+    useEffect(() => {
+        if (!gameState?.phase || !currentPlayer?.id || gameState.phase === 'lobby') return;
+        const lastClearedPhase = sessionStorage.getItem(`cleared_phase_${room?.id}`);
+        if (lastClearedPhase !== gameState.phase) {
+            supabase.from('players').update({ last_answer: null }).eq('id', currentPlayer.id).then(({ error }) => {
+                if (!error) {
+                    sessionStorage.setItem(`cleared_phase_${room?.id}`, gameState.phase);
+                    setPlayers(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, last_answer: null } : p));
+                }
+            });
+        }
+    }, [gameState?.phase, currentPlayer?.id, room?.id]);
+
+    // Global Host Sync
+    useEffect(() => {
+        if (!isHost || !room?.id || !gameState?.phase) return;
+        const monitorInterval = setInterval(() => {
+            const expirySource = gameState?.phase_expiry || room?.settings?.phase_expiry;
+            if (!expirySource || ['lobby', 'scoreboard', 'winner'].includes(gameState.phase)) return;
+            const now = Date.now();
+            const expiry = new Date(expirySource).getTime();
+            if (now > (expiry + 3500)) {
+                console.log(`RoomContext: Host Monitor forcing advance from ${gameState.phase}`);
+                const phaseOrder = ['text', 'emoji', 'interpretation', 'reveal', 'vote', 'scoreboard', 'winner'];
+                const currentIndex = phaseOrder.indexOf(gameState.phase);
+                if (currentIndex !== -1 && currentIndex < phaseOrder.length - 1) {
+                    advancePhase(phaseOrder[currentIndex + 1]);
+                }
+            }
+        }, 3000);
+        return () => clearInterval(monitorInterval);
+    }, [isHost, room?.id, gameState?.phase, gameState?.phase_expiry, room?.settings?.phase_expiry]);

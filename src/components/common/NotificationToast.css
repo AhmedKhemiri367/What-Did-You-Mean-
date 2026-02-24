@@ -1,0 +1,125 @@
+.notification-stack {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.notification-toast {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 12px 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    max-width: 320px;
+    pointer-events: auto;
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    overflow: hidden;
+}
+
+.notification-toast:active {
+    cursor: grabbing;
+}
+
+.notification-toast:hover {
+    transform: scale(1.02);
+}
+
+.notification-toast.success {
+    border-left: 4px solid #4CAF50;
+}
+
+.notification-toast.info {
+    border-left: 4px solid #2196F3;
+}
+
+.notification-toast.warning {
+    border-left: 4px solid #FFC107;
+}
+
+.notification-toast.error {
+    border-left: 4px solid #F44336;
+}
+
+.notification-icon {
+    font-size: 1.2rem;
+}
+
+.notification-message {
+    color: #333;
+    font-weight: 500;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* Dark Mode Support */
+body.dark-mode .notification-toast {
+    background: rgba(30, 30, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Re-apply border-left logic specifically to override the generic border property above */
+}
+
+body.dark-mode .notification-toast.success {
+    border-left: 4px solid #4CAF50;
+}
+
+body.dark-mode .notification-toast.info {
+    border-left: 4px solid #2196F3;
+}
+
+body.dark-mode .notification-toast.warning {
+    border-left: 4px solid #FFC107;
+}
+
+body.dark-mode .notification-toast.error {
+    border-left: 4px solid #F44336;
+}
+
+body.dark-mode .notification-message {
+    color: #eee;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%) translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes dismissRight {
+    to {
+        transform: translateX(150%);
+        opacity: 0;
+    }
+}
+
+@keyframes dismissUp {
+    to {
+        transform: translateY(-150%);
+        opacity: 0;
+    }
+}

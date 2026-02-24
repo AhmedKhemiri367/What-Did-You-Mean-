@@ -1,0 +1,863 @@
+body {
+  --phase-title: #4C1D95;
+  --phase-card-text: #4C1D95;
+  --phase-card-bg: rgba(255, 255, 255, 0.2);
+  --phase-ready-text: #4C1D95;
+  --phase-ready-bg: rgba(255, 255, 255, 0.4);
+  --input-text: #1F2937;
+  --input-bg: #FFFFFF;
+  --input-border: #E5E7EB;
+}
+
+input,
+textarea {
+  font-family: var(--font-family);
+  color: var(--input-text) !important;
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9CA3AF !important;
+  opacity: 0.7;
+}
+
+/* App Container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0 auto;
+  background-color: transparent;
+  /* Allow global background to show */
+  padding: 1.5rem;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  /* Opacity scaling instead of translation for smoother paint */
+  animation: page-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: opacity;
+  transform: translateZ(0);
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dynamic Background */
+.bg-shape {
+  position: fixed;
+  /* Changed to fixed */
+  border-radius: 50%;
+  filter: blur(80px);
+  /* Smoother blur */
+  z-index: -1;
+  opacity: 0.6;
+  animation: float-shape 10s infinite ease-in-out alternate;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.shape-purple {
+  width: 50vw;
+  height: 50vw;
+  max-width: 400px;
+  max-height: 400px;
+  background-color: var(--color-primary);
+  top: -5%;
+  right: -10%;
+  animation-duration: 12s;
+  opacity: 0.15;
+}
+
+.shape-yellow {
+  width: 45vw;
+  height: 45vw;
+  max-width: 350px;
+  max-height: 350px;
+  background-color: var(--color-secondary);
+  bottom: -5%;
+  left: -10%;
+  animation-duration: 15s;
+  opacity: 0.15;
+}
+
+.floating-emoji {
+  position: fixed;
+  /* Changed to fixed */
+  font-size: 2rem;
+  z-index: -1;
+  opacity: 0.4;
+  animation: float-emoji 8s infinite ease-in-out;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.emoji-controller {
+  top: 15%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.emoji-cloud {
+  bottom: 20%;
+  right: 10%;
+  font-size: 3rem;
+  opacity: 0.2;
+  animation-delay: 4s;
+}
+
+@keyframes float-shape {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(20px, 30px) scale(1.1);
+  }
+}
+
+@keyframes float-emoji {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translateY(-20px) rotate(10deg);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.3;
+  }
+}
+
+/* Settings Button */
+.settings-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: #374151;
+  /* Dark grey/blueish from image */
+  border: 4px solid #000000;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 1);
+  /* Chunkiness */
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.1s ease;
+  transform: rotate(-3deg);
+  /* Slight playful tilt */
+}
+
+/* Desktop Layout Adjustments for Ads */
+@media (min-width: 1024px) {
+  .settings-btn {
+    /* Pushes the button inwards towards the central 420px max-width column,
+       leaving the far left empty for skyscraper banner ads. */
+    left: calc(50vw - 350px);
+  }
+}
+
+.settings-btn:active {
+  transform: rotate(-3deg) translateY(4px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 1);
+}
+
+.settings-icon {
+  width: 32px;
+  /* Slightly larger */
+  height: 32px;
+  color: #fff;
+  /* Removed stroke for cleaner solid look */
+}
+
+/* Header Section */
+.header-section {
+  flex: 0 0 35%;
+  /* Approx 35% height */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.logo-container {
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.robot-face {
+  font-size: 80px;
+  line-height: 1;
+}
+
+.title-container {
+  position: relative;
+}
+
+.main-title {
+  font-weight: 800;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  /* Optional, user said nice in all caps */
+  color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #8B85FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transform: rotate(-2deg);
+  /* Tiny tilt */
+  margin-bottom: 0.5rem;
+  /* 3D Drop Shadow for Gradient Text */
+  filter: drop-shadow(4px 4px 0px rgba(108, 99, 255, 0.25));
+}
+
+/* Animations */
+@keyframes bounce-question {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce-emoji {
+  display: inline-block;
+  animation: bounce-question 2s infinite ease-in-out;
+  margin-left: 0.2rem;
+  font-style: normal;
+  /* Reset text fill transparent from parent h1 */
+  -webkit-text-fill-color: initial;
+  background: none;
+  /* Darker shade of Primary #6C63FF */
+  color: #5a52d5;
+  font-weight: 600;
+  /* 3D Text Shadow */
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.15);
+}
+
+.confused-emoji {
+  font-size: 2rem;
+  display: block;
+  margin-top: 5px;
+}
+
+/* Actions Section */
+.actions-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.btn-primary {
+  width: 90%;
+  /* Wide buttons */
+  max-width: 320px;
+  padding: 18px 24px;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-white);
+  background-color: var(--color-primary);
+  box-shadow: 0 6px 0 #5a52d5, 0 10px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.1s ease;
+  position: relative;
+  top: 0;
+}
+
+.btn-primary:active {
+  top: 6px;
+  box-shadow: 0 0 0 #5a52d5, inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary {
+  /* Using same shape but maybe different color if needed, user said Primary Action color */
+  /* For 'Create Room', user listed both buttons. Let's make one visually distinct?
+     The plan said "Accent colors: #6C63FF for primary buttons".
+     Let's keep them consistent or maybe make 'Create Room' secondary style?
+     User said: "Button 1: Join Online", "Button 2: Create Room".
+     I will make them identical style for now as they are both "Primary Actions".
+  */
+  width: 90%;
+  max-width: 320px;
+  padding: 18px 24px;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-white);
+  background-color: var(--color-secondary);
+  /* Using secondary accent for differentiation? */
+  /* Actually user said "Cards / Buttons: #FFFFFF" but also "Accent colors: #6C63FF for primary buttons" */
+  /* I will strictly follow "Primary Accent: #6C63FF" for buttons since they need to be obvious. */
+  /* But maybe one is secondary. Let's make Join #6C63FF and Create #FFB703 (Secondary Accent) for fun contrast? */
+  /* Or Create as Primary? "Create Room to start a game" is often key. */
+  /* Let's stick to Primary Color for both for consistency, maybe Secondary for the second one. */
+  background-color: var(--color-bg);
+  /* White/Light for secondary? No, user said "Buttons = obvious call-to-action" */
+}
+
+/* Let's make 'Join' Primary and 'Create' Primary but maybe stacked.
+   I'll style both as .action-btn
+*/
+
+.action-btn {
+  width: 80%;
+  max-width: 300px;
+  padding: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  border-radius: 16px;
+  color: white;
+  background-color: var(--color-primary);
+  box-shadow: 0 5px 15px rgba(108, 99, 255, 0.4);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto;
+  /* Force centering if flex parent is weird */
+}
+
+.action-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(108, 99, 255, 0.5);
+}
+
+.action-btn:active {
+  transform: translateY(-1px);
+}
+
+.btn-join {
+  background-color: var(--color-primary);
+}
+
+.btn-create {
+  /* Maybe make this one the Secondary Accent #FFB703 for contrast? */
+  background-color: var(--color-secondary);
+  box-shadow: 0 5px 15px rgba(255, 183, 3, 0.4);
+  color: #fff;
+  /* or dark text if yellow? White on yellow is hard. #FFB703 is quite bright. */
+  /* Let's check contrast. If #FFB703 (Amber), white text might be low contrast.
+        Let's try white, if not good, use dark.
+        For now I'll use Primary for both to be safe and clean, or Outline for one.
+        User request: "Accent colors: #6C63FF for primary buttons".
+        I'll make both Purple for now so they look uniform.
+     */
+  background-color: var(--color-primary);
+  /* Keep uniform */
+  margin-top: 1rem;
+  background-color: #fff;
+  /* Variation: White with Purple text/border? */
+  color: var(--color-primary);
+  border: 3px solid var(--color-primary);
+  box-shadow: none;
+}
+
+.btn-create:hover {
+  background-color: #fcfcfc;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+/* Footer Section */
+.footer-section {
+  margin-top: auto;
+  padding-top: 2rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.footer-link {
+  text-decoration: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin: 0 5px;
+}
+
+/* Dark Mode Support */
+.dark-mode body,
+body.dark-mode {
+  background-color: #0F172A !important;
+  color: #F8FAFC !important;
+  --phase-title: #C4B5FD !important;
+  --phase-card-text: #F5F3FF !important;
+  /* ULTRA BRIGHT WHITE-LAVENDER */
+  --phase-card-bg: rgba(255, 255, 255, 0.1) !important;
+  --phase-ready-text: #F5F3FF !important;
+  --phase-ready-bg: rgba(108, 99, 255, 0.2) !important;
+  --input-text: #F9FAFB !important;
+  --input-bg: rgba(31, 41, 55, 0.8) !important;
+  --input-border: #4B5563 !important;
+  color-scheme: dark;
+}
+
+
+.dark-mode .bg-shape.shape-purple {
+  background-color: #4C1D95;
+  opacity: 0.3;
+}
+
+.dark-mode .bg-shape.shape-yellow {
+  background-color: #78350F;
+  opacity: 0.2;
+}
+
+.dark-mode .action-btn.btn-create {
+  background-color: transparent;
+  color: #F8FAFC;
+  border-color: #6C63FF;
+}
+
+.dark-mode .action-btn.btn-create:hover {
+  background-color: rgba(108, 99, 255, 0.1);
+}
+
+.dark-mode .settings-btn {
+  background-color: #334155;
+  border-color: #475569;
+}
+
+.dark-mode .confused-emoji {
+  filter: drop-shadow(0 0 15px rgba(108, 99, 255, 0.4));
+}
+
+/* Vote Phase Animations */
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Selection Pop Animation */
+@keyframes selection-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+.player-vote-card.selected {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px #6C63FF, 0 15px 30px rgba(108, 99, 255, 0.5);
+  background: white;
+  z-index: 10;
+  animation: selection-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.dark-mode .player-vote-card.selected {
+  background: rgba(45, 55, 72, 0.9);
+  /* Opaque for focus */
+  box-shadow: 0 0 0 4px #C4B5FD, 0 15px 30px rgba(196, 181, 253, 0.5);
+}
+
+@keyframes shake-card {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px) rotate(-1deg);
+  }
+
+  75% {
+    transform: translateX(5px) rotate(1deg);
+  }
+}
+
+@keyframes emoji-burst {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.vote-category-btn:active {
+  animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Scoreboard Styles */
+.podium-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 15px;
+  margin-bottom: 30px;
+  height: 300px;
+}
+
+.podium-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 30%;
+  max-width: 110px;
+  text-align: center;
+}
+
+.podium-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  position: relative;
+  border: 3px solid transparent;
+}
+
+.podium-place.first .podium-avatar {
+  width: 90px;
+  height: 90px;
+  font-size: 3.5rem;
+  border-color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  z-index: 2;
+}
+
+.podium-place.second .podium-avatar {
+  border-color: #C0C0C0;
+}
+
+.podium-place.third .podium-avatar {
+  border-color: #CD7F32;
+}
+
+.podium-bar {
+  width: 100%;
+  border-radius: 15px 15px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 10px;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.podium-place.first .podium-bar {
+  height: 160px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+}
+
+.podium-place.second .podium-bar {
+  height: 120px;
+  background: linear-gradient(135deg, #E0E0E0 0%, #B0B0B0 100%);
+}
+
+.podium-place.third .podium-bar {
+  height: 100px;
+  background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);
+}
+
+.score-text {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.funny-title {
+  font-size: 0.7rem;
+  font-style: italic;
+  opacity: 0.9;
+  margin-top: 5px;
+  padding: 0 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.score-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-radius: 16px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.2s ease;
+  transform: translateZ(0);
+}
+
+.dark-mode .score-list-item {
+  background: rgba(31, 41, 55, 0.6);
+  color: white;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffd300;
+  top: -10px;
+  opacity: 0;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.chaos-award-card {
+  background: white;
+  padding: 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 2px solid #6C63FF;
+}
+
+.dark-mode .chaos-award-card {
+  background: rgba(31, 41, 55, 0.8);
+  border-color: #C4B5FD;
+}
+
+/* Game Winner Styles */
+.winner-hero-card {
+  background: rgba(255, 255, 255, 0.85);
+  /* Slightly more opaque */
+  backdrop-filter: blur(15px);
+  border-radius: 40px;
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 350px;
+  box-shadow: 0 20px 50px rgba(108, 99, 255, 0.25);
+  margin: 20px 0;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  animation: pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: translateZ(0);
+}
+
+.dark-mode .winner-hero-card {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(196, 181, 253, 0.15);
+}
+
+.winner-avatar-container {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.winner-avatar {
+  font-size: 6rem;
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.1));
+}
+
+.winner-crown {
+  font-size: 4rem;
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  animation: crown-drop 0.8s cubic-bezier(1.000, 0.005, 0.295, 1.255) 0.5s backwards;
+}
+
+@keyframes crown-drop {
+  0% {
+    transform: translate(-50%, -100px) rotate(-20deg);
+    opacity: 0;
+  }
+
+  70% {
+    transform: translate(-50%, 0) rotate(0deg);
+    opacity: 1;
+  }
+
+  85% {
+    transform: translate(-50%, -10px);
+  }
+
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+
+.winner-score {
+  font-family: 'Poppins', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 10px 0;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.1));
+}
+
+.winner-title-badge {
+  background: #FFD700;
+  color: #1F2937;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+  animation: pop 0.4s 1.2s backwards;
+  margin-top: 10px;
+}
+
+.action-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Responsive Player Grid for Vote Phase - V2 */
+.player-grid-v2 {
+  flex: 1;
+  width: 100%;
+  max-width: 500px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  /* Force 4 columns on mobile to keep cards tiny */
+  gap: 8px;
+  overflow-y: auto;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+@media (min-width: 600px) {
+  .player-grid-v2 {
+    grid-template-columns: repeat(6, 1fr);
+    /* 6 columns for desktop */
+  }
+}
+
+/* Player Card Styles */
+.player-vote-card {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s ease;
+  padding: 5px;
+  cursor: pointer;
+
+  /* CRITICAL FIX: Prevent grid blowout */
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.player-vote-card-avatar {
+  font-size: 1.5rem;
+  /* Further reduced from 2rem */
+  margin-bottom: 2px;
+}
+
+.player-vote-card-name {
+  font-size: 0.65rem;
+  /* Slightly smaller text */
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 4px;
+}
+
+/* Improve Vote Button Visibility */
+.vote-category-btn {
+  /* Ensure it has a visible border or shadow even when 'disabled' state logic applies */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
