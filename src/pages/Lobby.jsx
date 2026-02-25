@@ -161,8 +161,8 @@ function Lobby({ isDarkMode }) {
 
     // Settings States
     const [selectedMode, setSelectedMode] = useState(() => room?.settings?.selectedMode || 'Classic');
-    const [roundTime, setRoundTime] = useState(() => room?.settings?.roundTime ? parseInt(room.settings.roundTime) : 45);
-    const [voteDuration, setVoteDuration] = useState(() => room?.settings?.voteDuration ? parseInt(room.settings.voteDuration) : 25);
+    const [roundTime, setRoundTime] = useState(() => room?.settings?.roundTime ? parseInt(room.settings.roundTime) : 60);
+    const [voteDuration, setVoteDuration] = useState(() => room?.settings?.voteDuration ? parseInt(room.settings.voteDuration) : 30);
     const [maxPlayers, setMaxPlayers] = useState(() => room?.settings?.maxPlayers ? parseInt(room.settings.maxPlayers) : 8);
     const [maxScore, setMaxScore] = useState(() => {
         const s = room?.settings?.scoreToWin || room?.settings?.maxScore;

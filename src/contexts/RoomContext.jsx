@@ -1514,8 +1514,6 @@ export function RoomProvider({ children }) {
             await supabase.from('rooms').update({
                 settings: {
                     ...gameSettings,
-                    roundTime: gameSettings.roundTime || 60, // Ensure default if not provided
-                    voteDuration: gameSettings.voteDuration || 30, // Ensure default if not provided
                     phase_expiry: phaseExpiry,
                     player_order: pIds,
                     player_names: playerNames,
