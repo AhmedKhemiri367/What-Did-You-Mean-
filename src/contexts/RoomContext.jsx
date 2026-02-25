@@ -36,13 +36,34 @@ const generateRandomAssignments = (playerIds, chains, chainIdsToUse) => {
     const players = shuffleArr(playerIds);
     const chainIds = shuffleArr(chainIdsToUse);
 
+    // Dynamically calculate the maximum chain length to determine if we need to relax rules
+    let maxHistoryLength = 0;
+    chainIds.forEach(cId => {
+        if (chains[cId].history.length > maxHistoryLength) {
+            maxHistoryLength = chains[cId].history.length;
+        }
+    });
+
+    // Relax rule: If players have played more rounds than there are players, they mathematically HAVE to repeat chains.
+    // In that case, we only prevent them from getting the chain they JUST worked on.
+    const mustRelaxConstraints = maxHistoryLength >= players.length;
+
     // Track which chains each player has already worked on
     const playerSeenChains = {};
     players.forEach(pId => {
         playerSeenChains[pId] = new Set();
         chainIds.forEach(cId => {
-            const hasSeen = chains[cId].history.some(h => h.playerId === pId) || chains[cId].creator_id === pId;
-            if (hasSeen) playerSeenChains[pId].add(cId);
+            if (mustRelaxConstraints) {
+                // Relaxed: Only avoid the chain if they were the VERY LAST person to touch it
+                const hist = chains[cId].history;
+                if (hist.length > 0 && hist[hist.length - 1].playerId === pId) {
+                    playerSeenChains[pId].add(cId);
+                }
+            } else {
+                // Strict: Never get a chain you've EVER seen
+                const hasSeen = chains[cId].history.some(h => h.playerId === pId) || chains[cId].creator_id === pId;
+                if (hasSeen) playerSeenChains[pId].add(cId);
+            }
         });
     });
 
@@ -1925,10 +1946,11 @@ export function RoomProvider({ children }) {
                         allAssignments[nextPhase] = randomAssignments;
                     } else {
                         // Fallback to simple rotation if complex solving fails
-                        console.warn("RoomContext: Random assignment failed, falling back to basic rotation.");
+                        console.warn("RoomContext: Random assignment failed, falling back to randomized simple rotation.");
                         const fallbackAssignments = {};
+                        const shuffledChains = shuffleArr(chainsToUse); // GHOST V5: True shuffle for fallback
                         playingIds.forEach((pId, idx) => {
-                            const chainId = chainsToUse[idx];
+                            const chainId = shuffledChains[idx];
                             if (chainId) fallbackAssignments[pId] = chainId;
                         });
                         allAssignments[nextPhase] = fallbackAssignments;
