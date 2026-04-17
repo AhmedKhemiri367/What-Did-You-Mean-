@@ -52,12 +52,34 @@ function App() {
             <div className="floating-emoji emoji-controller">🎮</div>
             <div className="floating-emoji emoji-cloud">☁️</div>
 
-            <GameBody isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+            <GameWrapper isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
           </RoomProvider>
         </BrowserRouter>
       </SoundProvider>
     </LanguageProvider>
   );
+}
+
+function GameWrapper({ isDarkMode, toggleTheme }) {
+  const { isExitingRef, isRestoringSession } = useRoom();
+
+  if (isRestoringSession && !isExitingRef?.current) {
+    return (
+      <div style={{
+        height: '100dvh', width: '100%', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center', color: isDarkMode ? '#F9FAFB' : '#4C1D95'
+      }}>
+        <div className="confused-emoji" style={{ fontSize: '4rem', marginBottom: '20px', animation: 'bounce 2s infinite' }}>😵‍💫</div>
+        <h2 style={{ fontWeight: '800', margin: 0 }}>Restoring Session...</h2>
+      </div>
+    );
+  }
+
+  if (isExitingRef?.current) {
+    return <Routes><Route path="*" element={<Home isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} /></Routes>;
+  }
+
+  return <GameBody isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
 }
 
 function GameBody({ isDarkMode, toggleTheme }) {

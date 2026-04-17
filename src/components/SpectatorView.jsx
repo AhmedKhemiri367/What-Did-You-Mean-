@@ -192,7 +192,7 @@ const SpectatorView = ({ players, room, gameState, t, isDarkMode, onlinePlayerId
             promptTitle = t('phase3Title'); // Interpret emojis
         } else if (currentPhase === 'vote') {
             promptTitle = t('voteTime') || "Voting Phase 🗳️";
-            contentToDisplay = "Choose the best answer!";
+            contentToDisplay = t('chooseGreatestPlayer') || "Choose the greatest player!";
         }
     }
 

@@ -20,21 +20,25 @@ function Scoreboard({ isDarkMode }) {
     const cachedNames = room?.settings?.player_names || {};
     const isSpectatorMode = playingIds.length > 0 && !playingIds.includes(currentPlayer?.id) && currentPlayer?.is_host;
 
-    // Merge active players with info from player_order for those who left
-    const allPlayingPlayers = playingIds.map(id => {
+    // Merge active players with those who started the game (including dropped players)
+    const currentAssignments = room?.settings?.assignments?.[room?.settings?.selectedMode === 'Emoji Only' ? 'emoji_1' : 'text'] || {};
+    const playedIds = room?.settings?.player_order || Object.keys(currentAssignments);
+    const cachedScores = room?.settings?.cached_scores || {};
+
+    // Group players by score and sort descending including disconnected
+    const sortedPlayers = [...playedIds].map(id => {
         const active = players.find(p => p.id === id);
         if (active) return active;
-        // Fallback for departed players
+        // Fallback for players who dropped
+        const pName = room?.settings?.history?.[id]?.[0]?.authorName || "Offline Player";
         return {
             id,
-            name: cachedNames[id] || "Ghost",
-            score: 0, // In reality, we could store their final score in settings too, but for now 0 is better than nothing
+            name: pName,
+            score: cachedScores[id] || 0,
             avatar: "👻",
-            title: "The Departed"
+            isOffline: true
         };
-    });
-
-    const sortedPlayers = [...allPlayingPlayers].sort((a, b) => (b.score || 0) - (a.score || 0));
+    }).sort((a, b) => (b.score || 0) - (a.score || 0));
 
     // Podium is Top 3
     const top3 = sortedPlayers.slice(0, 3);

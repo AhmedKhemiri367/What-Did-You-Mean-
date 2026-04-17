@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRoom } from '../contexts/RoomContext';
 import { useSound } from '../contexts/SoundContext';
+import { EMOJI_DATA, EMOJI_CATEGORIES } from '../contexts/room/emojiData';
 
 import SpectatorView from '../components/SpectatorView';
 
@@ -51,9 +52,14 @@ function EmojiPhase({ isDarkMode }) {
         const last = currentPlayer.last_answer;
 
         if (last.startsWith('emoji:')) {
-            const restored = last.substring(6).split(' ');
-            setSelectedEmojis(restored);
-            setHasSubmitted(true);
+            const restoredStr = last.substring(6);
+            if (restoredStr.startsWith('Healed:')) {
+                const emojiPart = restoredStr.replace('Healed:', '').trim();
+                setSelectedEmojis([emojiPart]);
+            } else {
+                setSelectedEmojis(restoredStr.split(' '));
+                setHasSubmitted(true);
+            }
         } else if (last.startsWith('draft_emoji:')) {
             const restored = last.substring(12).split(' ');
             setSelectedEmojis(restored);
@@ -69,6 +75,7 @@ function EmojiPhase({ isDarkMode }) {
     useEffect(() => {
         if (hasSubmitted) return;
         const timeoutId = setTimeout(() => {
+            if (isSubmittingRef.current) return; // FIX: Prevent draft overwrite on quick submit
             // Save draft (even if empty, if the user has interacted, so we don't restore old ones)
             if (selectedEmojis.length > 0 || hasInteracted) {
                 saveDraft(selectedEmojis.join(' '), gameState?.phase || 'emoji_1');
@@ -111,6 +118,9 @@ function EmojiPhase({ isDarkMode }) {
         };
     }, [selectedEmojis, hasSubmitted, saveDraft, gameState?.phase]);
     const [showPicker, setShowPicker] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('smileys'); // Default category
+
 
     // Dynamic Colors
     const phraseColor = isDarkMode ? '#F5F3FF' : '#4C1D95';
@@ -131,83 +141,40 @@ function EmojiPhase({ isDarkMode }) {
     const isReceivedEmojis = lastStep?.phase.startsWith('emoji');
 
 
-    // Curated emoji list
-    const emojiList = [
-        // Faces & Emotions
-        '😀', '😂', '😍', '🤔', '🤨', '🙄', '😱', '😴', '😎', '🤢',
-        '🤮', '🤠', '🥳', '🥺', '🤯', '👻', '💀', '💩', '🤡', '👺',
-        '😭', '😤', '😡', '🤬', '😈', '👿', '🤖', '👾', '👽', '🤥',
-        '🤫', '🤭', '🧐', '🤓', '😇', '😷', '🤒', '🤕', '🤪', '😵',
-
-        // People & Body
-        '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟',
-        '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '👍', '👎', '👊',
-        '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💅', '🤳', '💪', '🦵',
-        '👂', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👄', '💋', '👅',
-
-        // Animals & Nature
-        '🐶', '🐱', '🐭', '🦁', '🐵', '🐸', '🦄', '🐲', '🌹', '🌵',
-        '🦊', '🐻', '🐼', '🐨', '🐯', '🐮', '🐷', '🐔', '🐧', '🐦',
-        '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🐝', '🐛',
-        '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢',
-        '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡',
-        '🐠', '🐟', '🐬', '🐳', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍',
-
-        // Food & Drink
-        '🍕', '🍔', '🍟', '🍣', '🍦', '🍩', '🥑', '🥦', '🍺', '☕',
-        '🍇', '🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏',
-        '🍐', '🍑', '🍒', '🍓', '🥝', '🍅', '🥥', '🍆', '🥔', '🥕',
-        '🌽', '🌶️', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰', '🍞', '🥐',
-        '🥖', '🥨', '🥯', '🥞', '🧀', '🍖', '🍗', '🥩', '🥓', '🥪',
-        '🍳', '🥘', '🍲', '🥣', '🥗', '🍿', '🧂', '🥫', '🍱', '🍘',
-        '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍡', '🍧', '🍨',
-        '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🥟', '🍤',
-
-        // Activities & Objects
-        '🚗', '✈️', '🚀', '🚲', '🏠', '💻', '📷', '🎮', '🎧', '🎸',
-        '⚽', '🏀', '🎭', '🎨', '💸', '📦', '🔑', '🔒', '💡', '⏰',
-        '🎻', '🥁', '📱', '☎️', '📞', '📟', '📠', '🔋', '🔌', '💽',
-        '💾', '💿', '📀', '🎥', '🎬', '📺', '📻', '📼', '🔍', '🔎',
-        '🕯️', '💡', '🔦', '🏮', '📔', '📕', '📖', '📗', '📘', '📙',
-        '📚', '📓', '📒', '📃', '📜', '📄', '📰', '🗞️', '📑', '🔖',
-        '💰', '💴', '💵', '💶', '💷', '💸', '💳', '🧾', '✉️', '📧',
-        '🧧', '📫', '📪', '📬', '📭', '📮', '🗳️', '✏️', '✒️', '🖋️',
-
-        // Symbols & Hearts
-        '❤️', '✨', '🔥', '💯', '🌈', '☀️', '⭐', '☁️', '❄️', '🌊',
-        '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️',
-        '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️',
-        '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎',
-        '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑',
-        '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶',
-        '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹'
-    ];
-    // Face emojis that are banned in "No Faces" mode
-    const faceEmojis = [
-        '😀', '😂', '😍', '🤔', '🤨', '🙄', '😱', '😴', '😎', '🤢',
-        '🤮', '🤠', '🥳', '🥺', '🤯', '👻', '💀', '💩', '🤡', '👺',
-        '😭', '😤', '😡', '🤬', '😈', '👿', '🤖', '👾', '👽', '🤥',
-        '🤫', '🤭', '🧐', '🤓', '😇', '😷', '🤒', '🤕', '🤪', '😵',
-        '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', // Cat faces
-        '🙈', '🙉', '🙊' // Monkey faces
-    ];
+    // Face emojis used for "No Faces" mode filtering
+    const faceEmojis = EMOJI_DATA.filter(e => e.category === 'smileys').map(e => e.emoji);
 
     const isNoFacesMode = room?.settings?.selectedMode === 'No Faces';
+
+    // Filtering logic for the picker
+    const filteredEmojis = EMOJI_DATA.filter(item => {
+        // 1. Filter by Search Query (if any)
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            return item.keywords.some(k => k.toLowerCase().includes(query));
+        }
+        // 2. Filter by Category (if no search)
+        return item.category === selectedCategory;
+    });
 
     // Filtering logic (Visual Only now): Prompt emojis remain in list but are disabled
     // In "No Faces" mode, face emojis are also disabled
 
-    // Updated Logic: Count only online players OR those who have already submitted.
-    const totalPlayers = playingIds.filter(id =>
-        onlinePlayerIds.has(id) ||
-        players.find(p => p.id === id)?.last_answer?.startsWith('emoji:')
-    ).length;
+    // UI Readiness Check: dynamically exclude disconnected players so the UI fractional text stays perfect
+    const activePlayingIds = playingIds.filter(id => onlinePlayerIds.has(id));
+    const totalPlayersCount = activePlayingIds.length || 0;
 
-    // Readiness Check: If they have an answer prefixed with 'emoji:', they are ready
     const playersReadyCount = players.filter(p =>
-        playingIds.includes(p.id) &&
+        activePlayingIds.includes(p.id) &&
         p.last_answer && p.last_answer.startsWith('emoji:')
     ).length;
+
+    // STICKY READY COUNT: Prevent flicker to 0 during phase transition
+    const isReadyToAdvanceRef = useRef(false);
+    if (totalPlayersCount > 0 && playersReadyCount >= totalPlayersCount) {
+        isReadyToAdvanceRef.current = true;
+    }
+    const displayedReadyCount = isReadyToAdvanceRef.current ? (totalPlayersCount > 0 ? totalPlayersCount : 0) : playersReadyCount;
 
 
     // Sync local hasSubmitted with DB state (last_answer exists)
@@ -225,7 +192,7 @@ function EmojiPhase({ isDarkMode }) {
         const expirySource = gameState?.phase_expiry || room?.settings?.phase_expiry;
         if (expirySource) {
             const now = Date.now();
-            const expiryTime = new Date(expirySource).getTime();
+            const expiryTime = Number(expirySource);
             const secondsLeft = Math.max(0, Math.ceil((expiryTime - now) / 1000));
             setTimeLeft(secondsLeft);
         }
@@ -245,7 +212,7 @@ function EmojiPhase({ isDarkMode }) {
 
             if (expirySource) {
                 const now = Date.now();
-                const expiryTime = new Date(expirySource).getTime();
+                const expiryTime = Number(expirySource);
                 const secondsLeft = Math.max(0, Math.ceil((expiryTime - now) / 1000));
 
                 setTimeLeft(prev => prev !== secondsLeft ? secondsLeft : prev);
@@ -313,22 +280,25 @@ function EmojiPhase({ isDarkMode }) {
         isSubmittingRef.current = true;
 
         const currentEmojis = selectedEmojisRef.current;
-        if (currentEmojis.length > 0) {
-            setHasSubmitted(true);
-            if (!isSpectatorMode) playSound('giggle');
-            submitAnswer(`emoji:${currentEmojis.join(' ')}`).finally(() => {
-                // Keep marked as submitted even after promise resolves
-            });
-        } else {
-            isSubmittingRef.current = false;
-            // Removed alert, we rely on auto-submit or visual cues
-        }
+        
+        // Always submit, even if empty, to ensure the game advances quickly 
+        // when the timer expires and automatically calls handleSubmit.
+        setHasSubmitted(true);
+        if (!isSpectatorMode) playSound('giggle');
+        submitAnswer(`emoji:${currentEmojis.join(' ')}`).finally(() => {
+            // Keep marked as submitted even after promise resolves
+        });
     };
 
     // Wait gracefully for DB sync if active player and phase hasn't physically aligned yet
     const isCorrectPhaseType = currentPhase.startsWith('emoji');
     if ((!isPhaseAligned || !isCorrectPhaseType) && !isSpectatorMode) {
-        return <div className="app-container" style={{ minHeight: '100dvh' }} />;
+        return (
+            <div className="app-container" style={{ minHeight: '100dvh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
+                <div style={{ color: 'var(--phase-title)', fontSize: '1.2rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>Syncing Phase...</div>
+            </div>
+        );
     }
 
     // MAIN RENDER (Wait until active components are ready, or show spectator screen)
@@ -344,7 +314,7 @@ function EmojiPhase({ isDarkMode }) {
                     marginTop: '20px', textAlign: 'center',
                     color: 'var(--phase-ready-text)', fontWeight: 'bold'
                 }}>
-                    {t('playersReady')}: {readyCount}/{totalPlayers}
+                    {t('playersReady')}: {displayedReadyCount}/{totalPlayersCount}
                 </div>
             </div>
         );
@@ -494,7 +464,7 @@ function EmojiPhase({ isDarkMode }) {
                     fontSize: '1.3rem',
                     border: `3px solid var(--phase-ready-text)22`
                 }}>
-                    {t('playersReady')}: {playersReadyCount}/{totalPlayers}
+                    {t('playersReady')}: <span style={{ fontWeight: 'bold' }}>{displayedReadyCount}/{totalPlayersCount}</span>
                 </div>
             </div>
 
@@ -516,40 +486,111 @@ function EmojiPhase({ isDarkMode }) {
                             <button onClick={() => { playSound('tap'); setShowPicker(false); }} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', fontSize: '1.2rem', fontWeight: 'bold' }}>✕</button>
                         </div>
 
+                        {/* Search Bar */}
+                        <div style={{ position: 'relative', marginBottom: '15px' }}>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={t('searchEmojis') || "Search emojis..."}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 15px 12px 40px',
+                                    borderRadius: '15px',
+                                    border: '2px solid #F3F4F6',
+                                    fontSize: '1rem',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    backgroundColor: '#F9FAFB'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = darkPurple}
+                                onBlur={(e) => e.target.style.borderColor = '#F3F4F6'}
+                            />
+                            <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                            {searchQuery && (
+                                <button 
+                                    onClick={() => setSearchQuery('')}
+                                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, fontSize: '0.9rem' }}
+                                >✕</button>
+                            )}
+                        </div>
+
+                        {/* Category Navigation */}
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: '10px', 
+                            overflowX: 'auto', 
+                            paddingBottom: '15px', 
+                            marginBottom: '15px',
+                            borderBottom: '1px solid #F3F4F6'
+                        }} className="no-scrollbar">
+                            {EMOJI_CATEGORIES.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => { playSound('tap'); setSelectedCategory(cat.id); setSearchQuery(''); }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '8px 12px',
+                                        borderRadius: '12px',
+                                        border: 'none',
+                                        whiteSpace: 'nowrap',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        backgroundColor: selectedCategory === cat.id && !searchQuery ? darkPurple : '#F3F4F6',
+                                        color: selectedCategory === cat.id && !searchQuery ? 'white' : '#6B7280',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <span>{cat.icon}</span>
+                                    <span>{cat.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
                         <div style={{
                             display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px',
-                            maxHeight: '400px', overflowY: 'auto', padding: '5px', justifyItems: 'center'
+                            maxHeight: '350px', overflowY: 'auto', padding: '5px', justifyItems: 'center'
                         }} className="no-scrollbar">
-                            {emojiList.map((emoji, index) => {
-                                const isUsedInPrompt = receivedContent.includes(emoji);
-                                const isFaceAndBanned = isNoFacesMode && faceEmojis.includes(emoji);
-                                const isDisabled = isUsedInPrompt || isFaceAndBanned;
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => {
-                                            if (!isDisabled) {
-                                                addEmoji(emoji);
-                                            }
-                                        }}
-                                        disabled={isDisabled}
-                                        style={{
-                                            fontSize: '2.5rem',
-                                            background: 'none',
-                                            border: 'none',
-                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                            padding: '5px',
-                                            transition: 'transform 0.1s',
-                                            opacity: isDisabled ? 0.3 : 1,
-                                            filter: isDisabled ? 'grayscale(100%)' : 'none',
-                                            transform: isDisabled ? 'none' : undefined
-                                        }}
-                                        className={isDisabled ? '' : "hover-pop"}
-                                    >
-                                        {emoji}
-                                    </button>
-                                );
-                            })}
+                            {filteredEmojis.length === 0 ? (
+                                <div style={{ gridColumn: 'span 5', padding: '20px', textAlign: 'center', color: '#9CA3AF' }}>
+                                    {t('noEmojisFound') || "No emojis found..."}
+                                </div>
+                            ) : (
+                                filteredEmojis.map((item, index) => {
+                                    const emoji = item.emoji;
+                                    const isUsedInPrompt = receivedContent.includes(emoji);
+                                    const isFaceAndBanned = isNoFacesMode && faceEmojis.includes(emoji);
+                                    const isDisabled = isUsedInPrompt || isFaceAndBanned;
+                                    return (
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                if (!isDisabled) {
+                                                    addEmoji(emoji);
+                                                }
+                                            }}
+                                            disabled={isDisabled}
+                                            style={{
+                                                fontSize: '2.5rem',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                padding: '5px',
+                                                transition: 'transform 0.1s',
+                                                opacity: isDisabled ? 0.3 : 1,
+                                                filter: isDisabled ? 'grayscale(100%)' : 'none',
+                                                transform: isDisabled ? 'none' : undefined
+                                            }}
+                                            className={isDisabled ? '' : "hover-pop"}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    );
+                                })
+                            )}
                         </div>
 
                         <button

@@ -53,7 +53,9 @@ function InterpretationPhase({ isDarkMode }) {
         if (last.startsWith('guess:')) {
             const restored = last.substring(6);
             setInterpretation(restored);
-            setHasSubmitted(true);
+            if (!restored.startsWith('Healed:')) {
+                setHasSubmitted(true);
+            }
         } else if (last.startsWith('draft_guess:')) {
             const restored = last.substring(12);
             setInterpretation(restored);
@@ -69,6 +71,7 @@ function InterpretationPhase({ isDarkMode }) {
     useEffect(() => {
         if (hasSubmitted) return;
         const timeoutId = setTimeout(() => {
+            if (isSubmittingRef.current) return; // FIX: Prevent draft overwrite on quick submit
             // Save draft (even if empty, if user interacted)
             if (interpretation.trim() || hasInteracted) {
                 saveDraft(interpretation, gameState?.phase || 'interpretation_1');
@@ -130,16 +133,21 @@ function InterpretationPhase({ isDarkMode }) {
     const receivedEmojis = content ? content.split(' ') : ["❓", "🌫️", "❓"];
 
 
-    // Updated Logic: Count only online players OR those who have already submitted.
-    const totalPlayers = playingIds.filter(id =>
-        onlinePlayerIds.has(id) ||
-        players.find(p => p.id === id)?.last_answer?.startsWith('guess:')
-    ).length;
+    // UI Readiness Check: dynamically exclude disconnected players so the UI fractional text stays perfect
+    const activePlayingIds = playingIds.filter(id => onlinePlayerIds.has(id));
+    const totalPlayersCount = activePlayingIds.length || 0;
 
     const playersReadyCount = players.filter(p =>
-        playingIds.includes(p.id) &&
+        activePlayingIds.includes(p.id) &&
         p.last_answer && p.last_answer.startsWith('guess:')
     ).length;
+
+    // STICKY READY COUNT: Prevent flicker to 0 during phase transition
+    const isReadyToAdvanceRef = useRef(false);
+    if (totalPlayersCount > 0 && playersReadyCount >= totalPlayersCount) {
+        isReadyToAdvanceRef.current = true;
+    }
+    const displayedReadyCount = isReadyToAdvanceRef.current ? (totalPlayersCount > 0 ? totalPlayersCount : 0) : playersReadyCount;
 
 
     // Sync local hasSubmitted with DB state (last_answer exists)
@@ -157,7 +165,7 @@ function InterpretationPhase({ isDarkMode }) {
         const expirySource = gameState?.phase_expiry || room?.settings?.phase_expiry;
         if (expirySource) {
             const now = Date.now();
-            const expiryTime = new Date(expirySource).getTime();
+            const expiryTime = Number(expirySource);
             const secondsLeft = Math.max(0, Math.ceil((expiryTime - now) / 1000));
             setTimeLeft(secondsLeft);
         }
@@ -219,7 +227,7 @@ function InterpretationPhase({ isDarkMode }) {
         if (onlinePlayerIds.has(currentPlayer.id)) {
             setHasSubmitted(true);
             if (!isSpectatorMode) playSound('giggle');
-            submitAnswer(finalInterpretation).finally(() => {
+            submitAnswer(`guess:${finalInterpretation}`).finally(() => {
                 isSubmittingRef.current = false;
             });
         }
@@ -229,12 +237,17 @@ function InterpretationPhase({ isDarkMode }) {
     // Wait gracefully for DB sync if active player and phase hasn't physically aligned yet
     const isCorrectPhaseType = currentPhase.startsWith('interpretation');
     if ((!isPhaseAligned || !isCorrectPhaseType) && !isSpectatorMode) {
-        return <div className="app-container" style={{ minHeight: '100dvh' }} />;
+        return (
+            <div className="app-container" style={{ minHeight: '100dvh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
+                <div style={{ color: 'var(--phase-title)', fontSize: '1.2rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>Syncing Phase...</div>
+            </div>
+        );
     }
 
     if (isSpectatorMode) {
         const prefix = 'guess:';
-        const readyCount = players.filter(p => playingIds.includes(p.id) && p.last_answer && p.last_answer.startsWith(prefix)).length;
+        const readyCount = players.filter(p => playingIds.includes(p.id) && onlinePlayerIds.has(p.id) && p.last_answer && p.last_answer.startsWith(prefix)).length;
 
         return (
             <div className="app-container" style={{ padding: '1.5rem', minHeight: '100dvh', overflowY: 'auto' }}>
@@ -252,7 +265,7 @@ function InterpretationPhase({ isDarkMode }) {
                     marginTop: '20px', textAlign: 'center',
                     color: 'var(--phase-ready-text)', fontWeight: 'bold'
                 }}>
-                    {t('playersReady')}: {readyCount}/{totalPlayers}
+                    {t('playersReady')}: {displayedReadyCount}/{totalPlayersCount}
                 </div>
             </div>
         );
@@ -292,7 +305,7 @@ function InterpretationPhase({ isDarkMode }) {
                         {/* Emojis to Translate */}
                         <div style={{ background: 'var(--phase-card-bg)', padding: '25px', borderRadius: '25px', border: '2px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(5px)', textAlign: 'center' }}>
                             <p style={{ color: 'var(--phase-card-text)', fontSize: '0.9rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>{t('translateEmojis')}</p>
-                            <div style={{ fontSize: '3.5rem', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            <div style={{ fontSize: '3.5rem', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                                 {receivedEmojis.map((e, i) => <span key={i} className="hover-pop">{e}</span>)}
                             </div>
                         </div>
@@ -376,7 +389,7 @@ function InterpretationPhase({ isDarkMode }) {
                     fontSize: '1.3rem',
                     border: '3px solid rgba(255,255,255,0.1)'
                 }}>
-                    {t('playersReady')}: {playersReadyCount}/{totalPlayers}
+                    {t('playersReady')}: <span style={{ fontWeight: 'bold' }}>{displayedReadyCount}/{totalPlayersCount}</span>
                 </div>
 
             </div>

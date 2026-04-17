@@ -153,7 +153,7 @@ function Lobby({ isDarkMode }) {
     const navigate = useNavigate();
     const { t, language } = useLanguage();
     const { isRTL, playSound } = useSound();
-    const { room, players, gameState, createRoom, joinRoom, startGame, isHost, currentPlayer, leaveRoom, promotePlayerToHost, kickPlayer, updateRoomSettings, markSettingsDirty, onlinePlayerIds } = useRoom(); // Use context
+    const { room, players, gameState, createRoom, joinRoom, startGame, isHost, currentPlayer, leaveRoom, promotePlayerToHost, kickPlayer, updateRoomSettings, markSettingsDirty, onlinePlayerIds, awayPlayerIds, isJoiningRef } = useRoom(); // Use context
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const initialMode = searchParams.get('mode') || 'join';
@@ -219,20 +219,26 @@ function Lobby({ isDarkMode }) {
     }, [gameState?.phase, playSound]);
 
     // Initialize Room
+    // Using shared guard from RoomContext instead of local one to prevent competition with initSession
+
     useEffect(() => {
         const init = async () => {
-            // Priority: If room already exists in context (e.g. from global auto-reconnect), do nothing
-            if (room?.id) return;
+            // Priority: If room already exists in context or if we are actively connecting, do nothing
+            if (room?.id || isJoiningRef.current) return;
 
             const urlCode = searchParams.get('code');
             const targetCode = urlCode || initialRoomCode;
 
-            if (targetCode) {
-                // RoomContext.joinRoom handles deduplication, so it's safe to call here
-                // even if autoReconnect is also trying to join.
-                await joinRoom(targetCode, initialName, initialAvatar);
-            } else if (initialMode === 'create') {
-                await createRoom(initialName, initialAvatar);
+            try {
+                const myFingerprint = localStorage.getItem('player_fingerprint');
+
+                if (targetCode) {
+                    await joinRoom(targetCode, initialName, initialAvatar, myFingerprint);
+                } else if (initialMode === 'create') {
+                    await createRoom(initialName, initialAvatar, myFingerprint);
+                }
+            } finally {
+                // We keep it true to prevent subsequent immediate reconnects until this component fully unmounts
             }
         };
         init();
@@ -257,6 +263,23 @@ function Lobby({ isDarkMode }) {
     useEffect(() => {
         if (room?.id && currentPlayer?.id && players.length > 0) setIsLoading(false);
     }, [room?.id, currentPlayer?.id, players.length]);
+
+    // FAILSAFE: If game started but the user was trapped in Lobby (e.g., due to dropped rAF on background tabs)
+    useEffect(() => {
+        if (!isLoading && room?.status === 'playing' && gameState?.phase && gameState.phase !== 'lobby') {
+            const p = gameState.phase;
+            const destSub = p.startsWith('text') ? '/text-phase' :
+                            p.startsWith('emoji') ? '/emoji-phase' :
+                            p.startsWith('interpretation') ? '/interpretation-phase' :
+                            p === 'reveal' ? '/reveal-phase' :
+                            p === 'vote' ? '/vote' : null;
+            if (destSub) {
+                console.log(`Lobby: Failsafe redirecting to active phase ${p}`);
+                const code = room?.room_code || new URLSearchParams(window.location.search).get('code');
+                navigate(`${destSub}?code=${code}`, { replace: true });
+            }
+        }
+    }, [isLoading, room?.status, gameState?.phase, room?.room_code, navigate]);
 
 
 
@@ -506,7 +529,7 @@ function Lobby({ isDarkMode }) {
 
                     <div style={{ width: '100%', position: 'relative', padding: '10px' }}>
                         <div style={{ color: primaryColor, fontWeight: '800', marginBottom: '5px', fontSize: '1.1rem', textAlign: 'left' }}>
-                            {t('players')} ({players.filter(p => onlinePlayerIds.has(p.id) || p.id === currentPlayer?.id).length || 1}/{maxPlayers})
+                            {t('players')} ({players.length}/{maxPlayers})
                         </div>
 
                         {/* Normal Rectangle Background */}
@@ -533,7 +556,8 @@ function Lobby({ isDarkMode }) {
                                 `}</style>
                                 {players.map(player => {
                                     const isMe = currentPlayer?.id === player.id;
-                                    const isOnline = onlinePlayerIds.has(player.id) || isMe;
+                                    const isTargetOnlineAndActive = onlinePlayerIds.has(player.id) && !awayPlayerIds.has(player.id);
+                                    const isOnline = isTargetOnlineAndActive || (isMe && document.visibilityState === 'visible');
                                     return (
                                         <div key={player.id}
                                             onClick={(e) => {
@@ -592,8 +616,8 @@ function Lobby({ isDarkMode }) {
                                                             justifyContent: 'center',
                                                             boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                                                             fontSize: '0.8rem',
-                                                            border: `2px solid ${primaryColor}`,
-                                                            zIndex: 5
+                                                            cursor: 'pointer',
+                                                            zIndex: 20
                                                         }}
                                                     >
                                                         ✏️
@@ -759,7 +783,7 @@ function Lobby({ isDarkMode }) {
                     </div>
 
                     {/* SECTION 5: START BUTTON */}
-                    <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
+                    <div style={{ paddingTop: '40px', paddingBottom: '20px' }}>
                         <style>
                             {`
                                 .start-game-btn {

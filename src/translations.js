@@ -130,7 +130,10 @@ export const translations = {
         gameStoppedError: "Game Stopped: Not enough players! 🛑",
         playerLeftInfo: "{name} left — game continues 👍",
         playerReconnected: "{name} reconnected! ⚡",
-        needsAtLeast2: "Need at least 2 active players to start!"
+        needsAtLeast2: "Need at least 2 active players to start!",
+        chooseGreatestPlayer: "Choose the greatest player!",
+        searchEmojis: "Search emojis...",
+        noEmojisFound: "No emojis found..."
     },
     fr: {
         settings: "Paramètres",
@@ -263,7 +266,10 @@ export const translations = {
         gameStoppedError: "Jeu arrêté : Pas assez de joueurs ! 🛑",
         playerLeftInfo: "{name} est parti — le jeu continue 👍",
         playerReconnected: "{name} s'est reconnecté ! ⚡",
-        needsAtLeast2: "Il faut au moins 2 joueurs actifs pour commencer !"
+        needsAtLeast2: "Il faut au moins 2 joueurs actifs pour commencer !",
+        chooseGreatestPlayer: "Choisissez le meilleur joueur !",
+        searchEmojis: "Rechercher des emojis...",
+        noEmojisFound: "Aucun emoji trouvé..."
     },
     ar: {
         settings: "الإعـدادات",
@@ -396,6 +402,9 @@ export const translations = {
         gameStoppedError: "توقفت اللعبة: لا يوجد عدد كافٍ من اللاعبين! 🛑",
         playerLeftInfo: "غادر {name} — اللعبة مستمرة 👍",
         playerReconnected: "عاد {name} للاتصال! ⚡",
-        needsAtLeast2: "تحتاج إلى لاعبين نشطين على الأقل للبدء!"
+        needsAtLeast2: "تحتاج إلى لاعبين نشطين على الأقل للبدء!",
+        chooseGreatestPlayer: "اختر أعظم لاعب!",
+        searchEmojis: "البحث عن الرموز...",
+        noEmojisFound: "لا توجد رموز تعبيرية..."
     }
 };

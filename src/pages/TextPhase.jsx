@@ -49,7 +49,9 @@ function TextPhase({ isDarkMode }) {
         if (last.startsWith('text:')) {
             const restored = last.substring(5);
             setAnswer(restored);
-            setHasSubmitted(true);
+            if (!restored.startsWith('Healed:')) {
+                setHasSubmitted(true);
+            }
         } else if (last.startsWith('draft:')) {
             const restored = last.substring(6);
             setAnswer(restored);
@@ -65,13 +67,14 @@ function TextPhase({ isDarkMode }) {
     useEffect(() => {
         if (hasSubmitted) return;
         const timeoutId = setTimeout(() => {
+            if (isSubmittingRef.current) return; // FIX: Prevent draft overwrite on quick submit
             // Save draft (even if empty, if the user has interacted, so we don't restore old ones)
             if (answer.trim() || hasInteracted) {
                 saveDraft(answer, 'text');
             }
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [answer, hasSubmitted, saveDraft]);
+    }, [answer, hasSubmitted, saveDraft, hasInteracted]);
 
     // SILENT DRAFT RE-SYNC: If server draft doesn't match local state, re-submit
     useEffect(() => {
@@ -107,17 +110,21 @@ function TextPhase({ isDarkMode }) {
         };
     }, [answer, hasSubmitted, saveDraft]);
 
-    // Readiness Check: Stable counts that don't flicker with connection jitters
-    // Updated Logic: Count only online players OR those who have already submitted.
-    const totalPlayers = playingIds.filter(id =>
-        onlinePlayerIds.has(id) ||
-        players.find(p => p.id === id)?.last_answer?.startsWith('text:')
-    ).length;
+    // UI Readiness Check: dynamically exclude disconnected players so the UI fractional text stays perfect
+    const activePlayingIds = playingIds.filter(id => onlinePlayerIds.has(id));
+    const totalPlayers = activePlayingIds.length || 0;
 
     const playersReadyCount = players.filter(p =>
-        playingIds.includes(p.id) &&
+        activePlayingIds.includes(p.id) &&
         p.last_answer && p.last_answer.startsWith('text:')
     ).length;
+
+    // STICKY READY COUNT: Prevent flicker to 0 during phase transition
+    const isReadyToAdvanceRef = useRef(false);
+    if (totalPlayers > 0 && playersReadyCount >= totalPlayers) {
+        isReadyToAdvanceRef.current = true;
+    }
+    const displayedReadyCount = isReadyToAdvanceRef.current ? (totalPlayers > 0 ? totalPlayers : 0) : playersReadyCount;
 
     // Sync local hasSubmitted with DB state (last_answer exists)
     useEffect(() => {
@@ -134,7 +141,7 @@ function TextPhase({ isDarkMode }) {
         const expirySource = gameState?.phase_expiry || room?.settings?.phase_expiry;
         if (expirySource) {
             const now = Date.now();
-            const expiryTime = new Date(expirySource).getTime();
+            const expiryTime = Number(expirySource);
             const secondsLeft = Math.max(0, Math.ceil((expiryTime - now) / 1000));
             setTimeLeft(secondsLeft);
         }
@@ -196,6 +203,7 @@ function TextPhase({ isDarkMode }) {
         // REMOVED: Client-side random fallbacks. 
         // We now allow empty submissions so the Host can pick up the Draft.
 
+        isSubmittingRef.current = true; // FIX: Prevent pending debounced drafts from firing
         setHasSubmitted(true);
         if (!isSpectatorMode) playSound('giggle');
         submitAnswer(`text:${finalAnswer}`).finally(() => {
@@ -211,7 +219,12 @@ function TextPhase({ isDarkMode }) {
 
     // Wait gracefully for DB sync if active player and phase hasn't physically aligned yet
     if ((!isPhaseAligned || !isCorrectPhaseType) && !isSpectatorMode) {
-        return <div className="app-container" style={{ minHeight: '100dvh' }} />;
+        return (
+            <div className="app-container" style={{ minHeight: '100dvh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
+                <div style={{ color: 'var(--phase-title)', fontSize: '1.2rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>Syncing Phase...</div>
+            </div>
+        );
     }
 
     if (isSpectatorMode) {
@@ -232,7 +245,7 @@ function TextPhase({ isDarkMode }) {
                     marginTop: '20px', textAlign: 'center',
                     color: 'var(--phase-ready-text)', fontWeight: 'bold'
                 }}>
-                    {t('playersReady')}: {playersReadyCount}/{totalPlayers}
+                    {t('playersReady')}: {displayedReadyCount}/{totalPlayers}
                 </div>
             </div>
         );
@@ -370,7 +383,7 @@ function TextPhase({ isDarkMode }) {
                     fontSize: '1.3rem',
                     border: '3px solid var(--phase-ready-text)22'
                 }}>
-                    {t('playersReady')}: {playersReadyCount}/{totalPlayers}
+                    {t('playersReady')}: {displayedReadyCount}/{totalPlayers}
                 </div>
 
             </div>

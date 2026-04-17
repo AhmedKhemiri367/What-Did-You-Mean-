@@ -56,7 +56,7 @@ function AvatarSelection({ isDarkMode }) {
 
         if (from === 'lobby' && currentPlayer?.id) {
             // Edit Mode: Update Existing Profile
-            const success = await updatePlayerProfile(currentPlayer.id, name, AVATARS[currentAvatarIndex]);
+            const success = await updatePlayerProfile(currentPlayer.id, name, AVATARS[currentAvatarIndex], currentPlayer.fingerprint);
             if (success) {
                 // Save to localStorage so it persists for next time
                 try {

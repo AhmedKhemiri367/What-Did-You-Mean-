@@ -174,7 +174,7 @@ function RevealPhase({ isDarkMode }) {
                                         "{historyStep.content}"
                                     </p>
                                 ) : (
-                                    <div style={{ fontSize: '3rem', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                    <div style={{ fontSize: '3rem', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                                         {historyStep.content?.split(' ').map((e, i) => <span key={i} className="hover-pop">{e}</span>)}
                                     </div>
                                 )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRoom } from '../contexts/RoomContext';
@@ -74,6 +74,13 @@ function VotePhase({ isDarkMode }) {
     const playersVotedCount = players.filter(p =>
         playingIds.includes(p.id) && onlinePlayerIds.has(p.id) && isVotedPayload(p.last_answer)
     ).length;
+
+    // STICKY READY COUNT: Prevent flicker to 0 during phase transition
+    const isReadyToAdvanceRef = useRef(false);
+    if (totalPlayersCount > 0 && playersVotedCount >= totalPlayersCount) {
+        isReadyToAdvanceRef.current = true;
+    }
+    const displayedVotedCount = isReadyToAdvanceRef.current ? (totalPlayersCount > 0 ? totalPlayersCount : 0) : playersVotedCount;
 
     // Grid Candidates: Everyone playing, EXCEPT ME, but include offline players (dimmed)
     const candidates = players.filter(p => playingIds.includes(p.id) && p.id !== currentPlayer?.id);
@@ -152,7 +159,7 @@ function VotePhase({ isDarkMode }) {
         if (!selectedPlayer || hasVoted || isSubmitting) return;
 
         // Save targetId as a draft so spectators can see who we are considering
-        saveDraft(selectedPlayer, 'vote');
+        saveDraft(`draft_vote:${selectedPlayer}`);
     }, [selectedPlayer, hasVoted, isSubmitting, saveDraft]);
 
     // IMMEDIATE Timer Sync on mount/update
@@ -160,7 +167,7 @@ function VotePhase({ isDarkMode }) {
         const expirySource = gameState?.phase_expiry || room?.settings?.phase_expiry;
         if (expirySource) {
             const now = Date.now();
-            const expiryTime = new Date(expirySource).getTime();
+            const expiryTime = Number(expirySource);
             const secondsLeft = Math.max(0, Math.ceil((expiryTime - now) / 1000));
             setTimeLeft(secondsLeft);
         }
@@ -208,7 +215,7 @@ function VotePhase({ isDarkMode }) {
 
             if (expirySource) {
                 const now = Date.now();
-                const expiryTime = new Date(expirySource).getTime();
+                const expiryTime = Number(expirySource);
                 const diff = expiryTime - now;
                 const secondsLeft = Math.max(0, Math.ceil(diff / 1000));
 
@@ -305,10 +312,11 @@ function VotePhase({ isDarkMode }) {
     // --- Optimized Vote Submission Pattern ---
     const submissionTimerRef = useRef(null);
 
-    const debouncedSubmit = (votes, immediate = false) => {
+    const debouncedSubmit = useCallback((votes, immediate = false) => {
         if (submissionTimerRef.current) clearTimeout(submissionTimerRef.current);
 
         const exec = () => {
+            if (isAdvancingRef.current) return;
             console.log("VotePhase: Executing DB sync for votes:", votes);
             setIsSubmitting(true);
             isSubmittingRef.current = true;
@@ -325,49 +333,43 @@ function VotePhase({ isDarkMode }) {
         } else {
             submissionTimerRef.current = setTimeout(exec, 250);
         }
-    };
+    }, [submitAnswer]);
 
     // Handle voting
     const handleVote = (e, categoryId, autoTargetId = null) => {
         if (e) e.stopPropagation();
-        if (!currentPlayer?.id) return;
+        if (!currentPlayer?.id || isSubmitting) return;
 
         const targetId = autoTargetId || selectedPlayer;
-        if (!targetId || isSubmitting) return;
+        if (!targetId) return;
 
         // Functional check of remaining votes based on LATEST state
-        setMyVotes(prev => {
-            // ONE VOTE TOTAL PER ROUND: Once you cast anything, you are done.
-            if (prev.length >= 1) return prev;
+        const currentCatVotes = myVotes.filter(v => v.category === categoryId).length;
+        const limit = voteLimits[categoryId];
+        const usedInDB = currentPlayer?.votes_used?.[categoryId] || 0;
 
-            const currentCatVotes = prev.filter(v => v.category === categoryId).length;
-            const limit = voteLimits[categoryId];
-            const usedInDB = votesUsedHistory[categoryId] || 0;
+        if (currentCatVotes + usedInDB >= limit) {
+            console.warn(`VotePhase: Limit reached for ${categoryId}`);
+            return;
+        }
 
-            if (currentCatVotes + usedInDB >= limit) {
-                console.warn(`VotePhase: Limit reached for ${categoryId}`);
-                return prev;
-            }
+        const newVotes = [{ category: categoryId, targetId }]; // Always exactly one vote per round
 
-            const newVotes = [{ category: categoryId, targetId }]; // Always exactly one vote per round
+        // Calculate if this was the last possible vote (using global state)
+        const totalBudget = Object.values(voteLimits).reduce((a, b) => a + b, 0);
+        const totalUsedInDB = Object.values(votesUsedHistory).reduce((a, b) => a + b, 0);
+        const isLastOfTotalBudget = (1 + totalUsedInDB) >= totalBudget;
 
-            // Calculate if this was the last possible vote (using global state)
-            const totalBudget = Object.values(voteLimits).reduce((a, b) => a + b, 0);
-            const totalUsedInDB = Object.values(votesUsedHistory).reduce((a, b) => a + b, 0);
-            const isLastOfTotalBudget = (1 + totalUsedInDB) >= totalBudget;
+        // Optimistic UI feedback
+        if (isLastOfTotalBudget) {
+            if (!isSpectatorMode) playSound('giggle');
+        } else {
+            playSound('pop');
+        }
 
-            // Optimistic UI feedback
-            if (isLastOfTotalBudget) {
-                if (!isSpectatorMode) playSound('giggle');
-            } else {
-                playSound('pop');
-            }
-
-            // Trigger immediate submission since it's the only vote
-            debouncedSubmit(newVotes, true);
-
-            return newVotes;
-        });
+        // Apply state and trigger immediate submission
+        setMyVotes(newVotes);
+        debouncedSubmit(newVotes, true);
     };
 
 
@@ -397,7 +399,7 @@ function VotePhase({ isDarkMode }) {
                     marginTop: '20px', textAlign: 'center',
                     color: 'var(--phase-ready-text)', fontWeight: 'bold'
                 }}>
-                    {t('playersVoted')}: {playersVotedCount}/{totalPlayersCount}
+                    {t('playersVoted')}: {displayedVotedCount}/{totalPlayersCount}
                 </div>
             </div>
         );
@@ -609,7 +611,7 @@ function VotePhase({ isDarkMode }) {
                         color: primaryColor, fontWeight: '800', fontSize: '1.1rem',
                         unicodeBidi: 'isolate', direction: 'ltr'
                     }}>
-                        {playersVotedCount} / {totalPlayersCount}
+                        {displayedVotedCount} / {totalPlayersCount}
                     </span>
                 </div>
             </div>
